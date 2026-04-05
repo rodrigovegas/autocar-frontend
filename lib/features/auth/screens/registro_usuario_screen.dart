@@ -11,8 +11,7 @@ class RegistroUsuarioScreen extends ConsumerStatefulWidget {
       _RegistroUsuarioScreenState();
 }
 
-class _RegistroUsuarioScreenState
-    extends ConsumerState<RegistroUsuarioScreen> {
+class _RegistroUsuarioScreenState extends ConsumerState<RegistroUsuarioScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nombreController = TextEditingController();
   final _correoController = TextEditingController();
@@ -29,11 +28,13 @@ class _RegistroUsuarioScreenState
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(authProvider.notifier).registrarUsuario(
-      _nombreController.text.trim(),
-      _correoController.text.trim(),
-      _contrasenaController.text,
-    );
+    final success = await ref
+        .read(authProvider.notifier)
+        .registrarUsuario(
+          _nombreController.text.trim(),
+          _correoController.text.trim(),
+          _contrasenaController.text,
+        );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,7 +129,7 @@ class _RegistroUsuarioScreenState
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.errorColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

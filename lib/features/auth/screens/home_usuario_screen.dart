@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../vehiculos/screens/vehiculos_screen.dart';
 import '../../talleres/screens/mapa_talleres_screen.dart';
+import '../../asistente/screens/asistente_screen.dart';
 
 class HomeUsuarioScreen extends ConsumerStatefulWidget {
   const HomeUsuarioScreen({super.key});
@@ -19,6 +20,7 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
     const _HomeTab(),
     const VehiculosScreen(),
     const MapaTalleresScreen(),
+    const AsistenteScreen(),
   ];
 
   @override
@@ -30,6 +32,7 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppTheme.primaryColor,
         unselectedItemColor: AppTheme.textSecondary,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -45,6 +48,11 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
             label: 'Talleres',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.smart_toy_outlined),
+            activeIcon: Icon(Icons.smart_toy),
+            label: 'Asistente',
           ),
         ],
       ),
@@ -83,10 +91,7 @@ class _HomeTab extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               'Bienvenido,',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
             ),
             Text(
               usuario?.nombre ?? 'Usuario',
@@ -100,10 +105,7 @@ class _HomeTab extends ConsumerWidget {
 
             const Text(
               'Acceso rápido',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
