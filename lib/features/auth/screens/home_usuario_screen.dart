@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../vehiculos/screens/vehiculos_screen.dart';
 import '../../talleres/screens/mapa_talleres_screen.dart';
 import '../../asistente/screens/asistente_screen.dart';
+import '../../reservas/screens/mis_reservas_screen.dart';
 
 class HomeUsuarioScreen extends ConsumerStatefulWidget {
   const HomeUsuarioScreen({super.key});
@@ -20,6 +21,7 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
     const _HomeTab(),
     const VehiculosScreen(),
     const MapaTalleresScreen(),
+    const MisReservasScreen(),
     const AsistenteScreen(),
   ];
 
@@ -48,6 +50,11 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
             label: 'Talleres',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today_outlined),
+            activeIcon: Icon(Icons.calendar_today),
+            label: 'Reservas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.smart_toy_outlined),

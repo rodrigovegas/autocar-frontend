@@ -4,6 +4,8 @@ import '../../../shared/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/taller_model.dart';
 
+// ─── Provider de LISTA de talleres (para el mapa) ───────────────────────────
+
 class TallerState {
   final bool isLoading;
   final List<TallerModel> talleres;
@@ -37,13 +39,15 @@ class TallerNotifier extends StateNotifier<TallerState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final response = await _apiService.dio.get(ApiConstants.talleres);
-      final talleres = (response.data as List)
-          .map((t) => TallerModel.fromJson(t))
+      final lista = (response.data as List)
+          .map((e) => TallerModel.fromJson(e))
           .toList();
-      state = state.copyWith(isLoading: false, talleres: talleres);
-    } on DioException catch (e) {
-      final mensaje = e.response?.data['detail'] ?? 'Error al cargar talleres';
-      state = state.copyWith(isLoading: false, error: mensaje);
+      state = state.copyWith(isLoading: false, talleres: lista);
+    } on DioException catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Error al cargar los talleres',
+      );
     }
   }
 }
@@ -51,4 +55,59 @@ class TallerNotifier extends StateNotifier<TallerState> {
 final tallerProvider =
     StateNotifierProvider<TallerNotifier, TallerState>((ref) {
   return TallerNotifier();
+});
+
+// ─── Provider de DETALLE de un taller (para reservas) ───────────────────────
+
+class TallerDetalleState {
+  final bool isLoading;
+  final TallerModel? taller;
+  final String? error;
+
+  const TallerDetalleState({
+    this.isLoading = false,
+    this.taller,
+    this.error,
+  });
+
+  TallerDetalleState copyWith({
+    bool? isLoading,
+    TallerModel? taller,
+    String? error,
+  }) {
+    return TallerDetalleState(
+      isLoading: isLoading ?? this.isLoading,
+      taller: taller ?? this.taller,
+      error: error,
+    );
+  }
+}
+
+class TallerDetalleNotifier extends StateNotifier<TallerDetalleState> {
+  final ApiService _apiService = ApiService();
+
+  TallerDetalleNotifier() : super(const TallerDetalleState());
+
+  Future<TallerModel?> cargarDetalle(String tallerId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final response = await _apiService.dio.get(
+        '${ApiConstants.talleres}/$tallerId',
+      );
+      final taller = TallerModel.fromJson(response.data);
+      state = state.copyWith(isLoading: false, taller: taller);
+      return taller;
+    } on DioException catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Error al cargar el detalle del taller',
+      );
+      return null;
+    }
+  }
+}
+
+final tallerDetalleProvider =
+    StateNotifierProvider<TallerDetalleNotifier, TallerDetalleState>((ref) {
+  return TallerDetalleNotifier();
 });

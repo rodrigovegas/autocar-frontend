@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../providers/taller_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/taller_model.dart';
+import '../../reservas/screens/crear_reserva_screen.dart';
 
 class MapaTalleresScreen extends ConsumerStatefulWidget {
   const MapaTalleresScreen({super.key});
@@ -16,8 +17,6 @@ class MapaTalleresScreen extends ConsumerStatefulWidget {
 
 class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
   final MapController _mapController = MapController();
-
-  // Centro de Tarija
   static const LatLng _centroTarija = LatLng(-21.5355, -64.7296);
 
   @override
@@ -25,6 +24,39 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
     super.initState();
     Future.microtask(() =>
         ref.read(tallerProvider.notifier).cargarTalleres());
+  }
+
+  Future<void> _abrirReserva(BuildContext context, TallerModel taller) async {
+    Navigator.pop(context); // cierra el bottom sheet
+
+    // Muestra loading mientras carga el detalle
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final tallerDetalle = await ref
+        .read(tallerDetalleProvider.notifier)
+        .cargarDetalle(taller.id);
+
+    if (context.mounted) Navigator.pop(context); // cierra loading
+
+    if (tallerDetalle != null && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CrearReservaScreen(taller: tallerDetalle),
+        ),
+      );
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al cargar el detalle del taller'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -75,8 +107,6 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
                     ),
                   ],
                 ),
-
-                // Lista de talleres abajo
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -89,10 +119,7 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
                         top: Radius.circular(16),
                       ),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 8,
-                        ),
+                        BoxShadow(color: Colors.black12, blurRadius: 8),
                       ],
                     ),
                     child: Column(
@@ -108,7 +135,8 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
                         ),
                         const SizedBox(height: 8),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(
                             children: [
                               Text(
@@ -135,8 +163,8 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
                                   if (taller.latitud != null &&
                                       taller.longitud != null) {
                                     _mapController.move(
-                                      LatLng(
-                                          taller.latitud!, taller.longitud!),
+                                      LatLng(taller.latitud!,
+                                          taller.longitud!),
                                       15,
                                     );
                                   }
@@ -258,9 +286,34 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Cerrar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _abrirReserva(context, taller),
+                    icon: const Icon(Icons.calendar_today,
+                        size: 16, color: Colors.white),
+                    label: const Text('Reservar',
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
