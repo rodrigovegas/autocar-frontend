@@ -17,4 +17,5 @@ class ApiConstants {
   static const String asistente = '/asistente/consulta';
   static const String notificaciones = '/notificaciones';
   static const String admin = '/admin';
+  
 }
