@@ -18,6 +18,18 @@ class _RegistroVehiculoScreenState
   final _modeloController = TextEditingController();
   final _anioController = TextEditingController();
   final _kilometrajeController = TextEditingController();
+  final _placaController = TextEditingController();
+  final _colorController = TextEditingController();
+  String? _tipoCombustible;
+
+  final List<String> _combustibles = [
+    'Gasolina',
+    'Diesel',
+    'GNV',
+    'Gasolina + GNV',
+    'Híbrido',
+    'Eléctrico',
+  ];
 
   @override
   void dispose() {
@@ -25,18 +37,29 @@ class _RegistroVehiculoScreenState
     _modeloController.dispose();
     _anioController.dispose();
     _kilometrajeController.dispose();
+    _placaController.dispose();
+    _colorController.dispose();
     super.dispose();
   }
 
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(vehiculoProvider.notifier).registrarVehiculo(
-      _marcaController.text.trim(),
-      _modeloController.text.trim(),
-      int.parse(_anioController.text),
-      int.parse(_kilometrajeController.text),
-    );
+    final success = await ref
+        .read(vehiculoProvider.notifier)
+        .registrarVehiculo(
+          _marcaController.text.trim(),
+          _modeloController.text.trim(),
+          int.parse(_anioController.text),
+          int.parse(_kilometrajeController.text),
+          placa: _placaController.text.trim().isEmpty
+              ? null
+              : _placaController.text.trim().toUpperCase(),
+          color: _colorController.text.trim().isEmpty
+              ? null
+              : _colorController.text.trim(),
+          tipoCombustible: _tipoCombustible,
+        );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,82 +95,123 @@ class _RegistroVehiculoScreenState
               ),
               const SizedBox(height: 24),
 
+              // Marca
               TextFormField(
                 controller: _marcaController,
                 decoration: const InputDecoration(
-                  labelText: 'Marca',
+                  labelText: 'Marca *',
                   prefixIcon: Icon(Icons.directions_car_outlined),
                   hintText: 'Ej: Toyota, Honda, Chevrolet',
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese la marca del vehículo';
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Ingrese la marca' : null,
               ),
               const SizedBox(height: 16),
 
+              // Modelo
               TextFormField(
                 controller: _modeloController,
                 decoration: const InputDecoration(
-                  labelText: 'Modelo',
+                  labelText: 'Modelo *',
                   prefixIcon: Icon(Icons.car_repair),
                   hintText: 'Ej: Corolla, Civic, Aveo',
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese el modelo del vehículo';
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Ingrese el modelo' : null,
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _anioController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Año',
-                  prefixIcon: Icon(Icons.calendar_today_outlined),
-                  hintText: 'Ej: 2020',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese el año del vehículo';
-                  }
-                  final anio = int.tryParse(value);
-                  if (anio == null || anio < 1990 || anio > 2026) {
-                    return 'Ingrese un año válido entre 1990 y 2026';
-                  }
-                  return null;
-                },
+              // Año y placa en fila
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _anioController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Año *',
+                        prefixIcon: Icon(Icons.calendar_today_outlined),
+                        hintText: 'Ej: 2020',
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Requerido';
+                        final anio = int.tryParse(v);
+                        if (anio == null || anio < 1990 || anio > 2026) {
+                          return 'Año inválido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _placaController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Placa',
+                        prefixIcon: Icon(Icons.badge_outlined),
+                        hintText: 'Ej: 1234ABC',
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
+              // Kilometraje
               TextFormField(
                 controller: _kilometrajeController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Kilometraje actual',
+                  labelText: 'Kilometraje actual *',
                   prefixIcon: Icon(Icons.speed_outlined),
                   hintText: 'Ej: 45000',
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese el kilometraje actual';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Ingrese un número válido';
-                  }
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Ingrese el kilometraje';
+                  if (int.tryParse(v) == null) return 'Número inválido';
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Color y tipo combustible en fila
+              // Color
+              TextFormField(
+                controller: _colorController,
+                decoration: const InputDecoration(
+                  labelText: 'Color',
+                  prefixIcon: Icon(Icons.color_lens_outlined),
+                  hintText: 'Ej: Blanco',
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Tipo combustible
+              DropdownButtonFormField<String>(
+                value: _tipoCombustible,
+                hint: const Text('Tipo de combustible'),
+                decoration: const InputDecoration(
+                  labelText: 'Combustible',
+                  prefixIcon: Icon(Icons.local_gas_station_outlined),
+                ),
+                items: _combustibles
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _tipoCombustible = v),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '* Campos obligatorios',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 24),
 
               if (state.error != null)
                 Container(
                   padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: AppTheme.errorColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -157,8 +221,6 @@ class _RegistroVehiculoScreenState
                     style: const TextStyle(color: AppTheme.errorColor),
                   ),
                 ),
-
-              const SizedBox(height: 16),
 
               state.isLoading
                   ? const Center(child: CircularProgressIndicator())

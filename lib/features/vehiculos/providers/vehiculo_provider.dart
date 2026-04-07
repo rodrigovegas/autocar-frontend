@@ -48,7 +48,14 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
   }
 
   Future<bool> registrarVehiculo(
-      String marca, String modelo, int anio, int kilometraje) async {
+    String marca,
+    String modelo,
+    int anio,
+    int kilometraje, {
+    String? placa,
+    String? color,
+    String? tipoCombustible,
+  }) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       await _apiService.dio.post(
@@ -58,12 +65,16 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
           'modelo': modelo,
           'anio': anio,
           'kilometraje_actual': kilometraje,
+          if (placa != null) 'placa': placa,
+          if (color != null) 'color': color,
+          if (tipoCombustible != null) 'tipo_combustible': tipoCombustible,
         },
       );
       await cargarVehiculos();
       return true;
     } on DioException catch (e) {
-      final mensaje = e.response?.data['detail'] ?? 'Error al registrar vehículo';
+      final mensaje =
+          e.response?.data['detail'] ?? 'Error al registrar vehículo';
       state = state.copyWith(isLoading: false, error: mensaje);
       return false;
     }
@@ -75,14 +86,39 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
       await cargarVehiculos();
       return true;
     } on DioException catch (e) {
-      final mensaje = e.response?.data['detail'] ?? 'Error al eliminar vehículo';
+      final mensaje =
+          e.response?.data['detail'] ?? 'Error al eliminar vehículo';
       state = state.copyWith(error: mensaje);
       return false;
     }
   }
+
+  Future<void> actualizarVehiculo(
+    String vehiculoId, {
+    int? kilometraje,
+    String? color,
+    String? tipoCombustible,
+  }) async {
+    try {
+      await _apiService.dio.put(
+        '${ApiConstants.vehiculos}/$vehiculoId',
+        data: {
+          if (kilometraje != null) 'kilometraje_actual': kilometraje,
+          if (color != null) 'color': color,
+          if (tipoCombustible != null) 'tipo_combustible': tipoCombustible,
+        },
+      );
+      await cargarVehiculos();
+    } on DioException catch (e) {
+      final mensaje =
+          e.response?.data['detail'] ?? 'Error al actualizar vehículo';
+      state = state.copyWith(error: mensaje);
+    }
+  }
 }
 
-final vehiculoProvider =
-    StateNotifierProvider<VehiculoNotifier, VehiculoState>((ref) {
-  return VehiculoNotifier();
-});
+final vehiculoProvider = StateNotifierProvider<VehiculoNotifier, VehiculoState>(
+  (ref) {
+    return VehiculoNotifier();
+  },
+);

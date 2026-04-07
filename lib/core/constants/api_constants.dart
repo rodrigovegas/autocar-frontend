@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.0.5:8000';
+  static const String baseUrl = 'http://192.168.0.4:8000';
   // 10.0.2.2 es la IP del localhost desde el emulador Android
   // Si usas dispositivo físico reemplaza con la IP de tu computadora
   // Por ejemplo: 'http://192.168.1.X:8000'
@@ -17,5 +17,4 @@ class ApiConstants {
   static const String asistente = '/asistente/consulta';
   static const String notificaciones = '/notificaciones';
   static const String admin = '/admin';
-  
 }

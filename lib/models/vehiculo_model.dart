@@ -4,6 +4,9 @@ class VehiculoModel {
   final String modelo;
   final int anio;
   final int kilometrajeActual;
+  final String? placa;
+  final String? color;
+  final String? tipoCombustible;
   final bool activo;
 
   VehiculoModel({
@@ -12,6 +15,9 @@ class VehiculoModel {
     required this.modelo,
     required this.anio,
     required this.kilometrajeActual,
+    this.placa,
+    this.color,
+    this.tipoCombustible,
     required this.activo,
   });
 
@@ -22,6 +28,9 @@ class VehiculoModel {
       modelo: json['modelo'],
       anio: json['anio'],
       kilometrajeActual: json['kilometraje_actual'],
+      placa: json['placa'],
+      color: json['color'],
+      tipoCombustible: json['tipo_combustible'],
       activo: json['activo'],
     );
   }
@@ -32,6 +41,9 @@ class VehiculoModel {
       'modelo': modelo,
       'anio': anio,
       'kilometraje_actual': kilometrajeActual,
+      if (placa != null) 'placa': placa,
+      if (color != null) 'color': color,
+      if (tipoCombustible != null) 'tipo_combustible': tipoCombustible,
     };
   }
 }

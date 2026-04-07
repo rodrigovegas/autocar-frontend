@@ -7,6 +7,7 @@ import '../../talleres/screens/mapa_talleres_screen.dart';
 import '../../asistente/screens/asistente_screen.dart';
 import '../../reservas/screens/mis_reservas_screen.dart';
 import '../../educativo/screens/educativo_screen.dart';
+import '../../mantenimiento/screens/historial_completado_screen.dart';
 
 class HomeUsuarioScreen extends ConsumerStatefulWidget {
   const HomeUsuarioScreen({super.key});
@@ -19,10 +20,9 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _pantallas = [
-    const _HomeTab(),
-    const VehiculosScreen(),
     const MapaTalleresScreen(),
     const MisReservasScreen(),
+    const _HomeTab(),
     const EducativoScreen(),
     const AsistenteScreen(),
   ];
@@ -39,16 +39,6 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car_outlined),
-            activeIcon: Icon(Icons.directions_car),
-            label: 'Vehículos',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.map_outlined),
             activeIcon: Icon(Icons.map),
             label: 'Talleres',
@@ -57,6 +47,11 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
             label: 'Reservas',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.school_outlined),
@@ -116,13 +111,11 @@ class _HomeTab extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 32),
-
             const Text(
               'Acceso rápido',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
@@ -130,7 +123,12 @@ class _HomeTab extends ConsumerWidget {
                     icono: Icons.directions_car,
                     titulo: 'Mis vehículos',
                     color: AppTheme.primaryColor,
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const VehiculosScreen(),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -139,7 +137,12 @@ class _HomeTab extends ConsumerWidget {
                     icono: Icons.map,
                     titulo: 'Talleres',
                     color: AppTheme.secondaryColor,
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MapaTalleresScreen(),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -152,7 +155,12 @@ class _HomeTab extends ConsumerWidget {
                     icono: Icons.calendar_today,
                     titulo: 'Reservas',
                     color: const Color(0xFF9333EA),
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MisReservasScreen(),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -161,10 +169,29 @@ class _HomeTab extends ConsumerWidget {
                     icono: Icons.school_outlined,
                     titulo: 'Educativo',
                     color: const Color(0xFFD97706),
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EducativoScreen(),
+                      ),
+                    ),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            // Fila completa para historial
+            _TarjetaAccesoAncha(
+              icono: Icons.history,
+              titulo: 'Historial de mantenimientos',
+              subtitulo: 'Ver mantenimientos completados en talleres',
+              color: const Color(0xFF0369A1),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const HistorialCompletadoScreen(),
+                ),
+              ),
             ),
           ],
         ),
@@ -209,6 +236,72 @@ class _TarjetaAcceso extends StatelessWidget {
                 fontSize: 13,
               ),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TarjetaAccesoAncha extends StatelessWidget {
+  final IconData icono;
+  final String titulo;
+  final String subtitulo;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _TarjetaAccesoAncha({
+    required this.icono,
+    required this.titulo,
+    required this.subtitulo,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icono, color: color, size: 32),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitulo,
+                    style: TextStyle(
+                      color: color.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: color.withValues(alpha: 0.5),
             ),
           ],
         ),

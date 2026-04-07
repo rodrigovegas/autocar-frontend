@@ -34,48 +34,49 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : state.vehiculos.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.directions_car_outlined,
-                    size: 80,
-                    color: AppTheme.textSecondary,
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.directions_car_outlined,
+                        size: 80,
+                        color: AppTheme.textSecondary,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No tienes vehículos registrados',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () => _irARegistro(context),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Registrar vehículo'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No tienes vehículos registrados',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _irARegistro(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Registrar vehículo'),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.vehiculos.length,
-              itemBuilder: (context, index) {
-                final vehiculo = state.vehiculos[index];
-                return _TarjetaVehiculo(
-                  vehiculo: vehiculo,
-                  onHistorial: () => _irAHistorial(context, vehiculo),
-                  onEliminar: () => _confirmarEliminar(
-                    context,
-                    vehiculo.id,
-                    '${vehiculo.marca} ${vehiculo.modelo}',
-                  ),
-                );
-              },
-            ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: state.vehiculos.length,
+                  itemBuilder: (context, index) {
+                    final vehiculo = state.vehiculos[index];
+                    return _TarjetaVehiculo(
+                      vehiculo: vehiculo,
+                      onHistorial: () => _irAHistorial(context, vehiculo),
+                      onEditar: () => _mostrarEdicion(context, vehiculo),
+                      onEliminar: () => _confirmarEliminar(
+                        context,
+                        vehiculo.id,
+                        '${vehiculo.marca} ${vehiculo.modelo}',
+                      ),
+                    );
+                  },
+                ),
       floatingActionButton: state.vehiculos.isNotEmpty
           ? FloatingActionButton(
               onPressed: () => _irARegistro(context),
@@ -98,8 +99,153 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => HistorialMantenimientoScreen(
-          vehiculoId: vehiculo.id, // ← sin int.parse
+          vehiculoId: vehiculo.id,
           vehiculoNombre: '${vehiculo.marca} ${vehiculo.modelo}',
+        ),
+      ),
+    );
+  }
+
+  void _mostrarEdicion(BuildContext context, VehiculoModel vehiculo) {
+    final kmController = TextEditingController(
+        text: vehiculo.kilometrajeActual.toString());
+    final colorController =
+        TextEditingController(text: vehiculo.color ?? '');
+    String? combustible = vehiculo.tipoCombustible;
+
+    const combustibles = [
+      'Gasolina',
+      'Diesel',
+      'GNV',
+      'Gasolina + GNV',
+      'Híbrido',
+      'Eléctrico',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Editar ${vehiculo.marca} ${vehiculo.modelo}',
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Solo puedes editar kilometraje, color y combustible',
+                style: TextStyle(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 20),
+
+              // Kilometraje
+              TextField(
+                controller: kmController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Kilometraje actual',
+                  prefixIcon: const Icon(Icons.speed_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Color
+              TextField(
+                controller: colorController,
+                decoration: InputDecoration(
+                  labelText: 'Color',
+                  prefixIcon: const Icon(Icons.color_lens_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Combustible
+              DropdownButtonFormField<String>(
+                value: combustible,
+                hint: const Text('Tipo de combustible'),
+                decoration: InputDecoration(
+                  labelText: 'Combustible',
+                  prefixIcon:
+                      const Icon(Icons.local_gas_station_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                items: combustibles
+                    .map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setModalState(() => combustible = v),
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final km = int.tryParse(kmController.text);
+                    if (km == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Kilometraje inválido')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(context);
+                    await ref
+                        .read(vehiculoProvider.notifier)
+                        .actualizarVehiculo(
+                          vehiculo.id,
+                          kilometraje: km,
+                          color: colorController.text.trim().isEmpty
+                              ? null
+                              : colorController.text.trim(),
+                          tipoCombustible: combustible,
+                        );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Vehículo actualizado'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Guardar cambios',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -126,7 +272,8 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      ref.read(vehiculoProvider).error ?? 'Error al eliminar',
+                      ref.read(vehiculoProvider).error ??
+                          'Error al eliminar',
                     ),
                     backgroundColor: AppTheme.errorColor,
                   ),
@@ -147,11 +294,13 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
 class _TarjetaVehiculo extends StatelessWidget {
   final VehiculoModel vehiculo;
   final VoidCallback onHistorial;
+  final VoidCallback onEditar;
   final VoidCallback onEliminar;
 
   const _TarjetaVehiculo({
     required this.vehiculo,
     required this.onHistorial,
+    required this.onEditar,
     required this.onEliminar,
   });
 
@@ -190,8 +339,30 @@ class _TarjetaVehiculo extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
+                      if (vehiculo.placa != null ||
+                          vehiculo.color != null ||
+                          vehiculo.tipoCombustible != null)
+                        Text(
+                          [
+                            if (vehiculo.placa != null)
+                              'Placa: ${vehiculo.placa}',
+                            if (vehiculo.color != null) vehiculo.color!,
+                            if (vehiculo.tipoCombustible != null)
+                              vehiculo.tipoCombustible!,
+                          ].join(' • '),
+                          style: const TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                     ],
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      color: AppTheme.primaryColor),
+                  onPressed: onEditar,
                 ),
                 IconButton(
                   icon: const Icon(
