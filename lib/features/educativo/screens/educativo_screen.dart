@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/educativo_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/educativo_model.dart';
+
+Future<void> _abrirUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 class EducativoScreen extends ConsumerStatefulWidget {
   const EducativoScreen({super.key});
@@ -46,6 +54,7 @@ class _EducativoScreenState extends ConsumerState<EducativoScreen> {
             .toList();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text('Contenido educativo'),
         automaticallyImplyLeading: false,
@@ -55,8 +64,9 @@ class _EducativoScreenState extends ConsumerState<EducativoScreen> {
           : Column(
               children: [
                 // Filtros de categoría
-                SizedBox(
-                  height: 48,
+                Container(
+                  color: Colors.white,
+                  height: 52,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(
@@ -71,13 +81,17 @@ class _EducativoScreenState extends ConsumerState<EducativoScreen> {
                         child: Container(
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 4),
+                              horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
                             color: seleccionada
                                 ? AppTheme.primaryColor
-                                : AppTheme.primaryColor
-                                    .withValues(alpha: 0.1),
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: seleccionada
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey.shade300,
+                            ),
                           ),
                           child: Text(
                             cat,
@@ -151,9 +165,19 @@ class _TarjetaContenido extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: InkWell(
         onTap: () => Navigator.push(
           context,
@@ -277,7 +301,174 @@ class _DetalleContenidoScreen extends StatelessWidget {
                     fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
+            if (contenido.urlVideo != null) ...[
+              const SizedBox(height: 24),
+              _VideoWidget(url: contenido.urlVideo!),
+            ],
+            if (contenido.urlImagen != null) ...[
+              const SizedBox(height: 12),
+              _MediaCard(
+                icon: contenido.urlImagen!.toLowerCase().contains('pdf')
+                    ? Icons.picture_as_pdf
+                    : Icons.image,
+                iconColor: contenido.urlImagen!.toLowerCase().contains('pdf')
+                    ? Colors.orange
+                    : Colors.blue,
+                label: 'Ver archivo adjunto',
+                url: contenido.urlImagen!,
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoWidget extends StatelessWidget {
+  final String url;
+  const _VideoWidget({required this.url});
+
+  String? _youtubeId(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+    if (uri.host.contains('youtube.com')) {
+      return uri.queryParameters['v'];
+    }
+    if (uri.host == 'youtu.be' && uri.pathSegments.isNotEmpty) {
+      return uri.pathSegments.first;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ytId = _youtubeId(url);
+
+    if (ytId != null) {
+      final thumbUrl = 'https://img.youtube.com/vi/$ytId/hqdefault.jpg';
+      return GestureDetector(
+        onTap: () => _abrirUrl(url),
+        child: SizedBox(
+          width: double.infinity,
+          height: 180,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                Positioned.fill(
+                  child: Image.network(
+                    thumbUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: Colors.black87),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_circle_fill,
+                        color: Colors.white,
+                        size: 56,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'YouTube',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _MediaCard(
+      icon: Icons.play_circle,
+      iconColor: Colors.red,
+      label: 'Ver video',
+      url: url,
+    );
+  }
+}
+
+class _MediaCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String url;
+
+  const _MediaCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.url,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => _abrirUrl(url),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      url,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.open_in_new, size: 16, color: AppTheme.textSecondary),
+            ],
+          ),
         ),
       ),
     );

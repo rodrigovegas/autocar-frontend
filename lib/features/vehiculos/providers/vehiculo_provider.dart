@@ -65,9 +65,9 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
           'modelo': modelo,
           'anio': anio,
           'kilometraje_actual': kilometraje,
-          if (placa != null) 'placa': placa,
-          if (color != null) 'color': color,
-          if (tipoCombustible != null) 'tipo_combustible': tipoCombustible,
+          'placa': ?placa,
+          'color': ?color,
+          'tipo_combustible': ?tipoCombustible,
         },
       );
       await cargarVehiculos();
@@ -93,6 +93,18 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
     }
   }
 
+  Future<String?> toggleVehiculo(String vehiculoId) async {
+    try {
+      await _apiService.dio.patch('${ApiConstants.vehiculos}/$vehiculoId/toggle');
+      await cargarVehiculos();
+      return null;
+    } on DioException catch (e) {
+      final mensaje = e.response?.data['detail'] ?? 'Error al cambiar estado del vehículo';
+      state = state.copyWith(error: mensaje);
+      return mensaje;
+    }
+  }
+
   Future<void> actualizarVehiculo(
     String vehiculoId, {
     int? kilometraje,
@@ -103,9 +115,9 @@ class VehiculoNotifier extends StateNotifier<VehiculoState> {
       await _apiService.dio.put(
         '${ApiConstants.vehiculos}/$vehiculoId',
         data: {
-          if (kilometraje != null) 'kilometraje_actual': kilometraje,
-          if (color != null) 'color': color,
-          if (tipoCombustible != null) 'tipo_combustible': tipoCombustible,
+          'kilometraje_actual': ?kilometraje,
+          'color': ?color,
+          'tipo_combustible': ?tipoCombustible,
         },
       );
       await cargarVehiculos();

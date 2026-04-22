@@ -518,7 +518,7 @@ class _DisponibilidadTallerScreenState
                             Switch(
                               value: d.activo,
                               onChanged: (_) => _toggleActivo(d),
-                              activeColor: const Color(0xFF15803D),
+                              activeThumbColor: const Color(0xFF15803D),
                             )
                           else
                             Icon(

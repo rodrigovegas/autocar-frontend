@@ -1,13 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/api_service.dart';
 import '../../vehiculos/screens/vehiculos_screen.dart';
 import '../../talleres/screens/mapa_talleres_screen.dart';
 import '../../asistente/screens/asistente_screen.dart';
 import '../../reservas/screens/mis_reservas_screen.dart';
 import '../../educativo/screens/educativo_screen.dart';
 import '../../mantenimiento/screens/historial_completado_screen.dart';
+
+// ─────────────────────────────────────────────
+// MODELO ESTADÍSTICAS USUARIO
+// ─────────────────────────────────────────────
+
+class _StatsUsuario {
+  final int vehiculosRegistrados;
+  final int reservasActivas;
+  final int mantenimientosCompletados;
+  final String? proximoMantenimiento;
+
+  const _StatsUsuario({
+    required this.vehiculosRegistrados,
+    required this.reservasActivas,
+    required this.mantenimientosCompletados,
+    this.proximoMantenimiento,
+  });
+
+  factory _StatsUsuario.fromJson(Map<String, dynamic> j) => _StatsUsuario(
+        vehiculosRegistrados: j['vehiculos_registrados'] ?? 0,
+        reservasActivas: j['reservas_activas'] ?? 0,
+        mantenimientosCompletados: j['mantenimientos_completados'] ?? 0,
+        proximoMantenimiento: j['proximo_mantenimiento'],
+      );
+}
+
+// ─────────────────────────────────────────────
+// SHELL PRINCIPAL (BottomNavigationBar)
+// ─────────────────────────────────────────────
 
 class HomeUsuarioScreen extends ConsumerStatefulWidget {
   const HomeUsuarioScreen({super.key});
@@ -20,9 +51,9 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _pantallas = [
-    const MapaTalleresScreen(),
-    const MisReservasScreen(),
     const _HomeTab(),
+    const MisReservasScreen(),
+    const MapaTalleresScreen(),
     const EducativoScreen(),
     const AsistenteScreen(),
   ];
@@ -38,10 +69,11 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
         unselectedItemColor: AppTheme.textSecondary,
         type: BottomNavigationBarType.fixed,
         items: const [
+          
           BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map),
-            label: 'Talleres',
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Inicio',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined),
@@ -49,9 +81,9 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
             label: 'Reservas',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Inicio',
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map),
+            label: 'Talleres',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.school_outlined),
@@ -69,189 +101,424 @@ class _HomeUsuarioScreenState extends ConsumerState<HomeUsuarioScreen> {
   }
 }
 
-class _HomeTab extends ConsumerWidget {
+// ─────────────────────────────────────────────
+// HOME TAB CON ESTADÍSTICAS Y DRAWER
+// ─────────────────────────────────────────────
+
+class _HomeTab extends ConsumerStatefulWidget {
   const _HomeTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends ConsumerState<_HomeTab> {
+  _StatsUsuario? _stats;
+  bool _loadingStats = true;
+  String? _errorStats;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarEstadisticas();
+  }
+
+  Future<void> _cargarEstadisticas() async {
+    setState(() {
+      _loadingStats = true;
+      _errorStats = null;
+    });
+    try {
+      final response = await ApiService().dio.get('/usuarios/estadisticas');
+      setState(() => _stats = _StatsUsuario.fromJson(response.data));
+    } on DioException catch (_) {
+      setState(() => _errorStats = 'No se pudieron cargar las estadísticas');
+    } finally {
+      if (mounted) setState(() => _loadingStats = false);
+    }
+  }
+
+  void _navegar(Widget pantalla) {
+    Navigator.pop(context); // cierra drawer
+    Navigator.push(context, MaterialPageRoute(builder: (_) => pantalla));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final usuario = ref.watch(authProvider).usuario;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AutoCar'),
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).cerrarSesion();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      backgroundColor: const Color(0xFFF3F4F6),
+
+      // ── Drawer ─────────────────────────────────────────────
+      drawer: Drawer(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
-            Text(
-              'Bienvenido,',
-              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
-            ),
-            Text(
-              usuario?.nombre ?? 'Usuario',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+            // Header del drawer
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(
+                20,
+                MediaQuery.of(context).padding.top + 20,
+                20,
+                24,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryColor,
+                    AppTheme.primaryColor.withValues(alpha: 0.8),
+                  ],
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.person,
+                        color: Colors.white, size: 26),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    usuario?.nombre ?? 'Usuario',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'Mi cuenta',
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'Acceso rápido',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _TarjetaAcceso(
+
+            // Items del drawer
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  _DrawerItem(
                     icono: Icons.directions_car,
                     titulo: 'Mis vehículos',
+                    subtitulo: 'Gestiona tus vehículos registrados',
                     color: AppTheme.primaryColor,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const VehiculosScreen(),
-                      ),
-                    ),
+                    onTap: () => _navegar(const VehiculosScreen()),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TarjetaAcceso(
-                    icono: Icons.map,
-                    titulo: 'Talleres',
-                    color: AppTheme.secondaryColor,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MapaTalleresScreen(),
-                      ),
-                    ),
+                  _DrawerItem(
+                    icono: Icons.history,
+                    titulo: 'Historial de mantenimiento',
+                    subtitulo: 'Ver mantenimientos completados',
+                    color: const Color(0xFF0369A1),
+                    onTap: () =>
+                        _navegar(const HistorialCompletadoScreen()),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _TarjetaAcceso(
-                    icono: Icons.calendar_today,
-                    titulo: 'Reservas',
-                    color: const Color(0xFF9333EA),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MisReservasScreen(),
-                      ),
-                    ),
+                  const Divider(indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text('Cerrar sesión',
+                        style: TextStyle(color: Colors.red)),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await ref
+                          .read(authProvider.notifier)
+                          .cerrarSesion();
+                      if (context.mounted) {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      }
+                    },
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _TarjetaAcceso(
-                    icono: Icons.school_outlined,
-                    titulo: 'Educativo',
-                    color: const Color(0xFFD97706),
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const EducativoScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // Fila completa para historial
-            _TarjetaAccesoAncha(
-              icono: Icons.history,
-              titulo: 'Historial de mantenimientos',
-              subtitulo: 'Ver mantenimientos completados en talleres',
-              color: const Color(0xFF0369A1),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const HistorialCompletadoScreen(),
-                ),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+
+      // ── AppBar ──────────────────────────────────────────────
+      appBar: AppBar(
+        title: const Text('AutoCar'),
+        backgroundColor: AppTheme.primaryColor,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+
+      // ── Body ────────────────────────────────────────────────
+      body: RefreshIndicator(
+        onRefresh: _cargarEstadisticas,
+        color: AppTheme.primaryColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header gradiente ──────────────────────────
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppTheme.primaryColor,
+                      AppTheme.primaryColor.withValues(alpha: 0.8),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.person,
+                          color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Bienvenido',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 13)),
+                          Text(
+                            usuario?.nombre ?? 'Usuario',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── Estadísticas ──────────────────────────────
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Mi resumen',
+                            style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold)),
+                        if (!_loadingStats)
+                          GestureDetector(
+                            onTap: _cargarEstadisticas,
+                            child: Icon(Icons.refresh,
+                                size: 20,
+                                color: AppTheme.primaryColor),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    if (_loadingStats)
+                      SizedBox(
+                        height: 200,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              color: AppTheme.primaryColor),
+                        ),
+                      )
+                    else if (_errorStats != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(_errorStats!,
+                                  style: const TextStyle(
+                                      color: Colors.red, fontSize: 13)),
+                            ),
+                            TextButton(
+                              onPressed: _cargarEstadisticas,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        children: [
+                          // Fila 1
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _StatCard(
+                                  icono: Icons.directions_car,
+                                  valor:
+                                      '${_stats!.vehiculosRegistrados}',
+                                  etiqueta: 'Vehículos\nregistrados',
+                                  color: AppTheme.primaryColor,
+                                  fondo: const Color(0xFFEFF6FF),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _StatCard(
+                                  icono: Icons.calendar_today,
+                                  valor: '${_stats!.reservasActivas}',
+                                  etiqueta: 'Reservas\nactivas',
+                                  color: const Color(0xFF0369A1),
+                                  fondo: const Color(0xFFF0F9FF),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Fila 2
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _StatCard(
+                                  icono: Icons.build_circle,
+                                  valor:
+                                      '${_stats!.mantenimientosCompletados}',
+                                  etiqueta: 'Mantenimientos\ncompletados',
+                                  color: const Color(0xFF15803D),
+                                  fondo: const Color(0xFFF0FDF4),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _StatCard(
+                                  icono: Icons.event,
+                                  valor: _stats!.proximoMantenimiento ??
+                                      'Sin recordatorios',
+                                  etiqueta: 'Próximo\nmantenimiento',
+                                  color: const Color(0xFFB45309),
+                                  fondo: const Color(0xFFFFFBEB),
+                                  valorPequeno:
+                                      _stats!.proximoMantenimiento !=
+                                          null,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _TarjetaAcceso extends StatelessWidget {
-  final IconData icono;
-  final String titulo;
-  final Color color;
-  final VoidCallback onTap;
+// ─────────────────────────────────────────────
+// TARJETA DE ESTADÍSTICA
+// ─────────────────────────────────────────────
 
-  const _TarjetaAcceso({
+class _StatCard extends StatelessWidget {
+  final IconData icono;
+  final String valor;
+  final String etiqueta;
+  final Color color;
+  final Color fondo;
+  final bool valorPequeno;
+
+  const _StatCard({
     required this.icono,
-    required this.titulo,
+    required this.valor,
+    required this.etiqueta,
     required this.color,
-    required this.onTap,
+    required this.fondo,
+    this.valorPequeno = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icono, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              titulo,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-              textAlign: TextAlign.center,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: fondo,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ],
-        ),
+            child: Icon(icono, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            valor,
+            style: TextStyle(
+              fontSize: valorPequeno ? 13 : 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+              height: 1,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            etiqueta,
+            style: TextStyle(
+              fontSize: 11,
+              color: color.withValues(alpha: 0.75),
+              height: 1.3,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _TarjetaAccesoAncha extends StatelessWidget {
+// ─────────────────────────────────────────────
+// ITEM DEL DRAWER
+// ─────────────────────────────────────────────
+
+class _DrawerItem extends StatelessWidget {
   final IconData icono;
   final String titulo;
   final String subtitulo;
   final Color color;
   final VoidCallback onTap;
 
-  const _TarjetaAccesoAncha({
+  const _DrawerItem({
     required this.icono,
     required this.titulo,
     required this.subtitulo,
@@ -261,51 +528,21 @@ class _TarjetaAccesoAncha extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          children: [
-            Icon(icono, color: color, size: 32),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    titulo,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitulo,
-                    style: TextStyle(
-                      color: color.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 14,
-              color: color.withValues(alpha: 0.5),
-            ),
-          ],
-        ),
+        child: Icon(icono, color: color, size: 20),
       ),
+      title: Text(titulo,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: Text(subtitulo,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+      onTap: onTap,
     );
   }
 }

@@ -94,7 +94,7 @@ class _RegistroMantenimientoScreenState
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _tipoSeleccionado,
+                initialValue: _tipoSeleccionado,
                 hint: const Text('Selecciona el tipo'),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(

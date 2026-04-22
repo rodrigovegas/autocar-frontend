@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import '../../../shared/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/reserva_model.dart';
-import '../../../models/taller_model.dart';
 
 class ReservaState {
   final bool isLoading;
@@ -79,34 +78,36 @@ class ReservaNotifier extends StateNotifier<ReservaState> {
   }
 
   Future<bool> crearReserva({
-    required String tallerId,
-    required String vehiculoId,
-    required String disponibilidadId,
-    required List<String> serviciosIds,
-  }) async {
-    state = state.copyWith(isLoading: true, error: null, exitoso: false);
-    try {
-      await _apiService.dio.post(
-        ApiConstants.reservas,
-        data: {
-          'taller_id': tallerId,
-          'vehiculo_id': vehiculoId,
-          'disponibilidad_id': disponibilidadId,
-          'servicios_ids': serviciosIds,
-        },
-      );
-      state = state.copyWith(isLoading: false, exitoso: true);
-      await cargarReservasUsuario();
-      return true;
-    } on DioException catch (e) {
-      final mensaje = e.response?.data['detail'] ?? 'Error al crear la reserva';
-      state = state.copyWith(
-        isLoading: false,
-        error: mensaje.toString(),
-      );
-      return false;
-    }
+  required String tallerId,
+  required String vehiculoId,
+  required String disponibilidadId,
+  required List<String> serviciosIds,
+  String? descripcionOtro,
+}) async {
+  state = state.copyWith(isLoading: true, error: null, exitoso: false);
+  try {
+    await _apiService.dio.post(
+      ApiConstants.reservas,
+      data: {
+        'taller_id': tallerId,
+        'vehiculo_id': vehiculoId,
+        'disponibilidad_id': disponibilidadId,
+        'servicios_ids': serviciosIds,
+        'descripcion_otro': ?descripcionOtro,
+      },
+    );
+    state = state.copyWith(isLoading: false, exitoso: true);
+    await cargarReservasUsuario();
+    return true;
+  } on DioException catch (e) {
+    final mensaje = e.response?.data['detail'] ?? 'Error al crear la reserva';
+    state = state.copyWith(
+      isLoading: false,
+      error: mensaje.toString(),
+    );
+    return false;
   }
+}
 
   Future<bool> cancelarReserva(String reservaId) async {
     try {

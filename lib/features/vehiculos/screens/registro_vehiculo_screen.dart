@@ -190,7 +190,7 @@ class _RegistroVehiculoScreenState
 
               // Tipo combustible
               DropdownButtonFormField<String>(
-                value: _tipoCombustible,
+                initialValue: _tipoCombustible,
                 hint: const Text('Tipo de combustible'),
                 decoration: const InputDecoration(
                   labelText: 'Combustible',

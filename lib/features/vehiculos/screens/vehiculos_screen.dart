@@ -4,7 +4,6 @@ import '../providers/vehiculo_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/vehiculo_model.dart';
 import 'registro_vehiculo_screen.dart';
-import '../../mantenimiento/screens/historial_mantenimiento_screen.dart';
 
 class VehiculosScreen extends ConsumerStatefulWidget {
   const VehiculosScreen({super.key});
@@ -13,71 +12,69 @@ class VehiculosScreen extends ConsumerStatefulWidget {
   ConsumerState<VehiculosScreen> createState() => _VehiculosScreenState();
 }
 
-class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
+class _VehiculosScreenState extends ConsumerState<VehiculosScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     Future.microtask(
       () => ref.read(vehiculoProvider.notifier).cargarVehiculos(),
     );
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(vehiculoProvider);
+    final activos = state.vehiculos.where((v) => v.activo).toList();
+    final inactivos = state.vehiculos.where((v) => !v.activo).toList();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: const Text('Mis vehículos'),
         automaticallyImplyLeading: false,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'Activos'),
+            Tab(text: 'Inactivos'),
+          ],
+        ),
       ),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : state.vehiculos.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.directions_car_outlined,
-                        size: 80,
-                        color: AppTheme.textSecondary,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No tienes vehículos registrados',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () => _irARegistro(context),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Registrar vehículo'),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: state.vehiculos.length,
-                  itemBuilder: (context, index) {
-                    final vehiculo = state.vehiculos[index];
-                    return _TarjetaVehiculo(
-                      vehiculo: vehiculo,
-                      onHistorial: () => _irAHistorial(context, vehiculo),
-                      onEditar: () => _mostrarEdicion(context, vehiculo),
-                      onEliminar: () => _confirmarEliminar(
-                        context,
-                        vehiculo.id,
-                        '${vehiculo.marca} ${vehiculo.modelo}',
-                      ),
-                    );
-                  },
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _TabVehiculos(
+                  vehiculos: activos,
+                  onEditar: (v) => _mostrarEdicion(context, v),
+                  onToggle: (v) => _toggleVehiculo(context, v),
+                  mensajeVacio: 'No tienes vehículos activos',
+                  onRegistrar: () => _irARegistro(context),
                 ),
-      floatingActionButton: state.vehiculos.isNotEmpty
+                _TabVehiculos(
+                  vehiculos: inactivos,
+                  onEditar: (v) => _mostrarEdicion(context, v),
+                  onToggle: (v) => _toggleVehiculo(context, v),
+                  mensajeVacio: 'No tienes vehículos inactivos',
+                ),
+              ],
+            ),
+      floatingActionButton: _tabController.index == 0
           ? FloatingActionButton(
               onPressed: () => _irARegistro(context),
               backgroundColor: AppTheme.primaryColor,
@@ -90,25 +87,27 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
   void _irARegistro(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const RegistroVehiculoScreen()),
+      MaterialPageRoute(builder: (_) => const RegistroVehiculoScreen()),
     );
   }
 
-  void _irAHistorial(BuildContext context, VehiculoModel vehiculo) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => HistorialMantenimientoScreen(
-          vehiculoId: vehiculo.id,
-          vehiculoNombre: '${vehiculo.marca} ${vehiculo.modelo}',
+  Future<void> _toggleVehiculo(
+      BuildContext context, VehiculoModel vehiculo) async {
+    final error =
+        await ref.read(vehiculoProvider.notifier).toggleVehiculo(vehiculo.id);
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
+      );
+    }
   }
 
   void _mostrarEdicion(BuildContext context, VehiculoModel vehiculo) {
-    final kmController = TextEditingController(
-        text: vehiculo.kilometrajeActual.toString());
+    final kmController =
+        TextEditingController(text: vehiculo.kilometrajeActual.toString());
     final colorController =
         TextEditingController(text: vehiculo.color ?? '');
     String? combustible = vehiculo.tipoCombustible;
@@ -148,12 +147,10 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
               const SizedBox(height: 4),
               const Text(
                 'Solo puedes editar kilometraje, color y combustible',
-                style: TextStyle(
-                    fontSize: 12, color: AppTheme.textSecondary),
+                style:
+                    TextStyle(fontSize: 12, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 20),
-
-              // Kilometraje
               TextField(
                 controller: kmController,
                 keyboardType: TextInputType.number,
@@ -165,8 +162,6 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Color
               TextField(
                 controller: colorController,
                 decoration: InputDecoration(
@@ -177,10 +172,8 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Combustible
               DropdownButtonFormField<String>(
-                value: combustible,
+                initialValue: combustible,
                 hint: const Text('Tipo de combustible'),
                 decoration: InputDecoration(
                   labelText: 'Combustible',
@@ -196,7 +189,6 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
                 onChanged: (v) => setModalState(() => combustible = v),
               ),
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -250,65 +242,103 @@ class _VehiculosScreenState extends ConsumerState<VehiculosScreen> {
       ),
     );
   }
-
-  void _confirmarEliminar(BuildContext context, String id, String nombre) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar vehículo'),
-        content: Text('¿Deseas eliminar $nombre?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final success = await ref
-                  .read(vehiculoProvider.notifier)
-                  .eliminarVehiculo(id);
-              if (!success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      ref.read(vehiculoProvider).error ??
-                          'Error al eliminar',
-                    ),
-                    backgroundColor: AppTheme.errorColor,
-                  ),
-                );
-              }
-            },
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: AppTheme.errorColor),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _TarjetaVehiculo extends StatelessWidget {
-  final VehiculoModel vehiculo;
-  final VoidCallback onHistorial;
-  final VoidCallback onEditar;
-  final VoidCallback onEliminar;
+// ─── TAB CON LISTA DE VEHÍCULOS ───────────────────────────────
 
-  const _TarjetaVehiculo({
-    required this.vehiculo,
-    required this.onHistorial,
+class _TabVehiculos extends StatelessWidget {
+  final List<VehiculoModel> vehiculos;
+  final void Function(VehiculoModel) onEditar;
+  final void Function(VehiculoModel) onToggle;
+  final String mensajeVacio;
+  final VoidCallback? onRegistrar;
+
+  const _TabVehiculos({
+    required this.vehiculos,
     required this.onEditar,
-    required this.onEliminar,
+    required this.onToggle,
+    required this.mensajeVacio,
+    this.onRegistrar,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    if (vehiculos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.directions_car_outlined,
+              size: 80,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              mensajeVacio,
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            if (onRegistrar != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: onRegistrar,
+                icon: const Icon(Icons.add),
+                label: const Text('Registrar vehículo'),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: vehiculos.length,
+      itemBuilder: (context, index) {
+        final vehiculo = vehiculos[index];
+        return _TarjetaVehiculo(
+          vehiculo: vehiculo,
+          onEditar: () => onEditar(vehiculo),
+          onToggle: () => onToggle(vehiculo),
+        );
+      },
+    );
+  }
+}
+
+// ─── TARJETA DE VEHÍCULO ──────────────────────────────────────
+
+class _TarjetaVehiculo extends StatelessWidget {
+  final VehiculoModel vehiculo;
+  final VoidCallback onEditar;
+  final VoidCallback onToggle;
+
+  const _TarjetaVehiculo({
+    required this.vehiculo,
+    required this.onEditar,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final esActivo = vehiculo.activo;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -316,9 +346,12 @@ class _TarjetaVehiculo extends StatelessWidget {
           children: [
             Row(
               children: [
-                const CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor,
-                  child: Icon(Icons.directions_car, color: Colors.white),
+                CircleAvatar(
+                  backgroundColor: esActivo
+                      ? AppTheme.primaryColor
+                      : Colors.grey.shade400,
+                  child:
+                      const Icon(Icons.directions_car, color: Colors.white),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -350,8 +383,10 @@ class _TarjetaVehiculo extends StatelessWidget {
                             if (vehiculo.tipoCombustible != null)
                               vehiculo.tipoCombustible!,
                           ].join(' • '),
-                          style: const TextStyle(
-                            color: AppTheme.primaryColor,
+                          style: TextStyle(
+                            color: esActivo
+                                ? AppTheme.primaryColor
+                                : Colors.grey.shade500,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -364,13 +399,6 @@ class _TarjetaVehiculo extends StatelessWidget {
                       color: AppTheme.primaryColor),
                   onPressed: onEditar,
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppTheme.errorColor,
-                  ),
-                  onPressed: onEliminar,
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -378,17 +406,18 @@ class _TarjetaVehiculo extends StatelessWidget {
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onHistorial,
-                icon: const Icon(Icons.history, size: 18),
-                label: const Text('Ver historial de mantenimiento'),
+              child: OutlinedButton(
+                onPressed: onToggle,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.primaryColor,
-                  side: const BorderSide(color: AppTheme.primaryColor),
+                  foregroundColor:
+                      esActivo ? Colors.orange : Colors.green,
+                  side: BorderSide(
+                      color: esActivo ? Colors.orange : Colors.green),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
+                child: Text(esActivo ? 'Desactivar' : 'Activar'),
               ),
             ),
           ],

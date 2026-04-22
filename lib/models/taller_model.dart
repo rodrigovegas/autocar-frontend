@@ -29,29 +29,33 @@ class ServicioTallerModel {
 class TallerModel {
   final String id;
   final String nombre;
-  final String especialidad;
+  final String? especialidadNombre;
   final String direccionTexto;
   final String telefono;
   final double? latitud;
   final double? longitud;
   final List<ServicioTallerModel> servicios;
+  final double? calificacionPromedio;
+  final int? totalCalificaciones;
 
   TallerModel({
     required this.id,
     required this.nombre,
-    required this.especialidad,
+    this.especialidadNombre,
     required this.direccionTexto,
     required this.telefono,
     this.latitud,
     this.longitud,
     this.servicios = const [],
+    this.calificacionPromedio,
+    this.totalCalificaciones,
   });
 
   factory TallerModel.fromJson(Map<String, dynamic> json) {
     return TallerModel(
       id: json['id'],
       nombre: json['nombre'],
-      especialidad: json['especialidad'],
+      especialidadNombre: json['especialidad_nombre'],
       direccionTexto: json['direccion_texto'],
       telefono: json['telefono'],
       latitud: json['latitud'] != null
@@ -65,6 +69,10 @@ class TallerModel {
               .map((s) => ServicioTallerModel.fromJson(s))
               .toList()
           : [],
+      calificacionPromedio: json['calificacion_promedio'] != null
+          ? double.parse(json['calificacion_promedio'].toString())
+          : null,
+      totalCalificaciones: json['total_calificaciones'],
     );
   }
 }

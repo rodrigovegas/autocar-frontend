@@ -18,6 +18,8 @@ class _PublicarContenidoScreenState
   final _formKey = GlobalKey<FormState>();
   final _tituloController = TextEditingController();
   final _cuerpoController = TextEditingController();
+  final _urlVideoController = TextEditingController();
+  final _urlImagenController = TextEditingController();
   String _categoriaSeleccionada = 'Aceite';
   bool _isLoading = false;
 
@@ -34,6 +36,8 @@ class _PublicarContenidoScreenState
   void dispose() {
     _tituloController.dispose();
     _cuerpoController.dispose();
+    _urlVideoController.dispose();
+    _urlImagenController.dispose();
     super.dispose();
   }
 
@@ -49,6 +53,8 @@ class _PublicarContenidoScreenState
           'titulo': _tituloController.text.trim(),
           'cuerpo': _cuerpoController.text.trim(),
           'categoria': _categoriaSeleccionada,
+          'url_video': _urlVideoController.text.trim().isEmpty ? null : _urlVideoController.text.trim(),
+          'url_imagen': _urlImagenController.text.trim().isEmpty ? null : _urlImagenController.text.trim(),
         },
       );
       if (mounted) {
@@ -102,7 +108,7 @@ class _PublicarContenidoScreenState
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _categoriaSeleccionada,
+                initialValue: _categoriaSeleccionada,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -145,6 +151,33 @@ class _PublicarContenidoScreenState
                 validator: (v) => v == null || v.length < 50
                     ? 'El contenido debe tener al menos 50 caracteres'
                     : null,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _urlVideoController,
+                decoration: InputDecoration(
+                  labelText: 'Link de video (opcional)',
+                  hintText: 'Ej: https://youtube.com/watch?v=...',
+                  prefixIcon: const Icon(Icons.play_circle_outline),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _urlImagenController,
+                decoration: InputDecoration(
+                  labelText: 'Link de imagen o PDF (opcional)',
+                  hintText: 'Ej: https://drive.google.com/...',
+                  prefixIcon: const Icon(Icons.attach_file_outlined),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Puedes usar Google Drive, Dropbox u otro servicio para compartir el enlace',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
               const SizedBox(height: 32),
               SizedBox(

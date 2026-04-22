@@ -37,6 +37,7 @@ class _HistorialMantenimientoScreenState
     final state = ref.watch(mantenimientoProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,19 +75,283 @@ class _HistorialMantenimientoScreenState
           ? const Center(child: CircularProgressIndicator())
           : state.mantenimientos.isEmpty
               ? _EmptyState()
-              : ListView.builder(
+              : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: state.mantenimientos.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    return _TarjetaMantenimiento(
-                      mantenimiento: state.mantenimientos[index],
-                      vehiculoId: widget.vehiculoId,
+                    final m = state.mantenimientos[index];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => _DetalleMantenimientoScreen(
+                              mantenimiento: m,
+                              vehiculoId: widget.vehiculoId,
+                            ),
+                          ),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryColor
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.build_circle_outlined,
+                                  color: AppTheme.primaryColor,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Tipo #${m.tipoMantenimientoId}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      m.fecha,
+                                      style: const TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: Colors.green
+                                          .withValues(alpha: 0.4)),
+                                ),
+                                child: const Text(
+                                  'COMPLETADO',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_forward_ios,
+                                  size: 13,
+                                  color: AppTheme.textSecondary),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),
     );
   }
 }
+
+// ─── PANTALLA DE DETALLE ──────────────────────────────────────
+
+class _DetalleMantenimientoScreen extends ConsumerWidget {
+  final MantenimientoModel mantenimiento;
+  final String vehiculoId;
+
+  const _DetalleMantenimientoScreen({
+    required this.mantenimiento,
+    required this.vehiculoId,
+  });
+
+  Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar registro'),
+        content:
+            const Text('¿Estás seguro de eliminar este registro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true && context.mounted) {
+      ref.read(mantenimientoProvider.notifier).eliminar(
+            mantenimiento.id,
+            vehiculoId,
+          );
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = mantenimiento;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
+      appBar: AppBar(
+        title: const Text('Detalle del mantenimiento'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.build_circle_outlined,
+                            color: AppTheme.primaryColor, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Tipo #${m.tipoMantenimientoId}',
+                              style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            const Text(
+                              'Registro de mantenimiento',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(height: 1),
+                  const SizedBox(height: 20),
+                  _CampoDetalle(
+                    icono: Icons.calendar_today,
+                    label: 'Fecha',
+                    valor: m.fecha,
+                  ),
+                  if (m.kilometraje != null) ...[
+                    const SizedBox(height: 14),
+                    _CampoDetalle(
+                      icono: Icons.speed,
+                      label: 'Kilometraje',
+                      valor: '${m.kilometraje} km',
+                    ),
+                  ],
+                  if (m.costo != null) ...[
+                    const SizedBox(height: 14),
+                    _CampoDetalle(
+                      icono: Icons.attach_money,
+                      label: 'Costo',
+                      valor: 'Bs. ${m.costo!.toStringAsFixed(2)}',
+                    ),
+                  ],
+                  if (m.tallerNombre != null) ...[
+                    const SizedBox(height: 14),
+                    _CampoDetalle(
+                      icono: Icons.store_outlined,
+                      label: 'Taller',
+                      valor: m.tallerNombre!,
+                    ),
+                  ],
+                  if (m.descripcion != null &&
+                      m.descripcion!.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _CampoDetalle(
+                      icono: Icons.notes,
+                      label: 'Descripción',
+                      valor: m.descripcion!,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _eliminar(context, ref),
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text('Eliminar registro',
+                    style: TextStyle(color: Colors.red)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── WIDGETS COMPARTIDOS ──────────────────────────────────────
 
 class _EmptyState extends StatelessWidget {
   @override
@@ -113,134 +378,42 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _TarjetaMantenimiento extends ConsumerWidget {
-  final MantenimientoModel mantenimiento;
-  final String vehiculoId;
-
-  const _TarjetaMantenimiento({
-    required this.mantenimiento,
-    required this.vehiculoId,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.build,
-                    color: AppTheme.primaryColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tipo #${mantenimiento.tipoMantenimientoId}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      Text(
-                        mantenimiento.fecha,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () async {
-                    final confirmar = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('Eliminar registro'),
-                        content: const Text(
-                            '¿Estás seguro de eliminar este registro?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancelar'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Eliminar',
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmar == true && context.mounted) {
-                      ref.read(mantenimientoProvider.notifier).eliminar(
-                            mantenimiento.id,
-                            vehiculoId,
-                          );
-                    }
-                  },
-                ),
-              ],
-            ),
-            if (mantenimiento.kilometraje != null) ...[
-              const SizedBox(height: 8),
-              _InfoFila(icono: Icons.speed, texto: '${mantenimiento.kilometraje} km'),
-            ],
-            if (mantenimiento.tallerNombre != null) ...[
-              const SizedBox(height: 4),
-              _InfoFila(icono: Icons.store, texto: mantenimiento.tallerNombre!),
-            ],
-            if (mantenimiento.costo != null) ...[
-              const SizedBox(height: 4),
-              _InfoFila(
-                  icono: Icons.attach_money,
-                  texto: 'Bs. ${mantenimiento.costo!.toStringAsFixed(2)}'),
-            ],
-            if (mantenimiento.descripcion != null) ...[
-              const SizedBox(height: 4),
-              _InfoFila(icono: Icons.notes, texto: mantenimiento.descripcion!),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoFila extends StatelessWidget {
+class _CampoDetalle extends StatelessWidget {
   final IconData icono;
-  final String texto;
+  final String label;
+  final String valor;
 
-  const _InfoFila({required this.icono, required this.texto});
+  const _CampoDetalle({
+    required this.icono,
+    required this.label,
+    required this.valor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icono, size: 14, color: AppTheme.textSecondary),
-        const SizedBox(width: 6),
+        Icon(icono, size: 18, color: AppTheme.primaryColor),
+        const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            texto,
-            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                valor,
+                style: const TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
           ),
         ),
       ],

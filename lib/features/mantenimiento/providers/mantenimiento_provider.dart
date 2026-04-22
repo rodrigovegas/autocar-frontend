@@ -90,8 +90,8 @@ class MantenimientoNotifier extends StateNotifier<MantenimientoState> {
           'vehiculo_id': vehiculoId,
           'tipo_mantenimiento_id': tipoMantenimientoId,
           'fecha': fecha,
-          if (kilometraje != null) 'kilometraje': kilometraje,
-          if (costo != null) 'costo': costo,
+          'kilometraje': ?kilometraje,
+          'costo': ?costo,
           if (descripcion != null && descripcion.isNotEmpty)
             'descripcion': descripcion,
           if (tallerNombre != null && tallerNombre.isNotEmpty)

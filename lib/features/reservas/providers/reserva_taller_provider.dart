@@ -58,7 +58,7 @@ class ReservaTallerNotifier extends StateNotifier<ReservaTallerState> {
         '${ApiConstants.reservas}/$reservaId/estado',
         data: {
           'estado': estado,
-          if (motivoRechazo != null) 'motivo_rechazo': motivoRechazo,
+          'motivo_rechazo': ?motivoRechazo,
         },
       );
       await cargarReservas();

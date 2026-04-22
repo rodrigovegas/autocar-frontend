@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 
 class ServicioReservaModel {
   final String id;
@@ -23,7 +22,10 @@ class ReservaModel {
   final String estado;
   final List<ServicioReservaModel> servicios;
   final String? motivoRechazo;
+  final String? descripcionOtro;
   final String fechaCreacion;
+  final int? calificacion;
+  final String? comentarioCalificacion;
 
   ReservaModel({
     required this.id,
@@ -34,7 +36,10 @@ class ReservaModel {
     required this.estado,
     required this.servicios,
     this.motivoRechazo,
+    this.descripcionOtro,
     required this.fechaCreacion,
+    this.calificacion,
+    this.comentarioCalificacion,
   });
 
   factory ReservaModel.fromJson(Map<String, dynamic> json) {
@@ -49,7 +54,10 @@ class ReservaModel {
           .map((s) => ServicioReservaModel.fromJson(s))
           .toList(),
       motivoRechazo: json['motivo_rechazo'],
+      descripcionOtro: json['descripcion_otro'],
       fechaCreacion: json['fecha_creacion'],
+      calificacion: json['calificacion'],
+      comentarioCalificacion: json['comentario_calificacion'],
     );
   }
 }
@@ -83,7 +91,7 @@ class DisponibilidadModel {
     try {
       final fechaObj = DateTime.parse(fecha);
       final fechaFormateada =
-          DateFormat('dd/MM/yyyy').format(fechaObj);
+          '${fechaObj.day.toString().padLeft(2, '0')}/${fechaObj.month.toString().padLeft(2, '0')}/${fechaObj.year}';
       return '$fechaFormateada — ${horaInicio.substring(0, 5)} a ${horaFin.substring(0, 5)}';
     } catch (_) {
       return '$fecha $horaInicio';
