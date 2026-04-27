@@ -13,8 +13,7 @@ class MapaTalleresScreen extends ConsumerStatefulWidget {
   const MapaTalleresScreen({super.key});
 
   @override
-  ConsumerState<MapaTalleresScreen> createState() =>
-      _MapaTalleresScreenState();
+  ConsumerState<MapaTalleresScreen> createState() => _MapaTalleresScreenState();
 }
 
 class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
@@ -65,25 +64,43 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
         .toList();
   }
 
-  Future<void> _abrirReserva(BuildContext context, TallerModel taller) async {
-    Navigator.pop(context);
+  Future<void> _abrirReserva(
+    BuildContext sheetContext,
+    TallerModel taller,
+  ) async {
+    // Usamos el context del widget (State) no el del sheet
+    final scaffoldContext = context;
+
+    // Cerramos el bottom sheet primero
+    Navigator.pop(sheetContext);
+
+    // Mostramos loading en el context principal
+    if (!scaffoldContext.mounted) return;
     showDialog(
-      context: context,
+      context: scaffoldContext,
       barrierDismissible: false,
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
+
     final detalle = await ref
         .read(tallerDetalleProvider.notifier)
         .cargarDetalle(taller.id);
-    if (context.mounted) Navigator.pop(context);
-    if (detalle != null && context.mounted) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => CrearReservaScreen(taller: detalle)));
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Error al cargar el detalle del taller'),
-        backgroundColor: Colors.red,
-      ));
+
+    // Cerramos el loading
+    if (scaffoldContext.mounted) Navigator.pop(scaffoldContext);
+
+    if (detalle != null && scaffoldContext.mounted) {
+      Navigator.push(
+        scaffoldContext,
+        MaterialPageRoute(builder: (_) => CrearReservaScreen(taller: detalle)),
+      );
+    } else if (scaffoldContext.mounted) {
+      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+        const SnackBar(
+          content: Text('Error al cargar el detalle del taller'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -103,7 +120,8 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
             // Handle
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2),
@@ -111,25 +129,30 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
               ),
             ),
             const SizedBox(height: 16),
-            Text(taller.nombre,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              taller.nombre,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             if (taller.calificacionPromedio != null) ...[
               const SizedBox(height: 6),
-              Row(children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  '${taller.calificacionPromedio}',
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '(${taller.totalCalificaciones} reseñas)',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-              ]),
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${taller.calificacionPromedio}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '(${taller.totalCalificaciones} reseñas)',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 12),
             _DetalleRow(
@@ -150,36 +173,45 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
               color: AppTheme.textSecondary,
             ),
             const SizedBox(height: 24),
-            Row(children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    side: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  child: const Text('Cerrar'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _abrirReserva(ctx, taller),
-                  icon: const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.white),
-                  label: const Text('Reservar',
-                      style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: const Text('Cerrar'),
                   ),
                 ),
-              ),
-            ]),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _abrirReserva(ctx, taller),
+                    icon: const Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Reservar',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -201,7 +233,8 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                   height: 36,
                   child: Center(
                     child: SizedBox(
-                      width: 18, height: 18,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
@@ -216,12 +249,13 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                         onTap: () =>
                             setState(() => _filtroSeleccionado = 'Todos'),
                       ),
-                      ..._especialidades.map((e) => _FiltroChip(
-                            label: e,
-                            activo: _filtroSeleccionado == e,
-                            onTap: () =>
-                                setState(() => _filtroSeleccionado = e),
-                          )),
+                      ..._especialidades.map(
+                        (e) => _FiltroChip(
+                          label: e,
+                          activo: _filtroSeleccionado == e,
+                          onTap: () => setState(() => _filtroSeleccionado = e),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -234,15 +268,20 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.store_outlined,
-                          size: 52, color: Colors.grey.shade300),
+                      Icon(
+                        Icons.store_outlined,
+                        size: 52,
+                        color: Colors.grey.shade300,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         _filtroSeleccionado == 'Todos'
                             ? 'No hay talleres disponibles'
                             : 'No hay talleres de esta especialidad',
                         style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 14),
+                          color: Colors.grey.shade500,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -284,15 +323,21 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
             MarkerLayer(
               markers: talleres
                   .where((t) => t.latitud != null && t.longitud != null)
-                  .map((t) => Marker(
-                        point: LatLng(t.latitud!, t.longitud!),
-                        width: 40, height: 40,
-                        child: GestureDetector(
-                          onTap: () => _mostrarDetalle(context, t),
-                          child: const Icon(Icons.location_pin,
-                              color: AppTheme.primaryColor, size: 40),
+                  .map(
+                    (t) => Marker(
+                      point: LatLng(t.latitud!, t.longitud!),
+                      width: 40,
+                      height: 40,
+                      child: GestureDetector(
+                        onTap: () => _mostrarDetalle(context, t),
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: AppTheme.primaryColor,
+                          size: 40,
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           ],
@@ -300,22 +345,22 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
 
         // Panel inferior
         Positioned(
-          bottom: 0, left: 0, right: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
           child: Container(
             height: 170,
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(20)),
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 10)
-              ],
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
             ),
             child: Column(
               children: [
                 const SizedBox(height: 8),
                 Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
@@ -324,13 +369,17 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                 const SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(children: [
-                    Text(
-                      '${talleres.length} talleres disponibles',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14),
-                    ),
-                  ]),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${talleres.length} talleres disponibles',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
@@ -344,7 +393,9 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                         onTap: () {
                           if (t.latitud != null && t.longitud != null) {
                             _mapController.move(
-                                LatLng(t.latitud!, t.longitud!), 15);
+                              LatLng(t.latitud!, t.longitud!),
+                              15,
+                            );
                           }
                           _mostrarDetalle(context, t);
                         },
@@ -360,40 +411,51 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.04),
                                 blurRadius: 4,
-                              )
+                              ),
                             ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(t.nombre,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                              Text(
+                                t.nombre,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                               const SizedBox(height: 3),
                               Text(
                                 t.especialidadNombre ?? 'Sin especialidad',
                                 style: const TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontSize: 11),
+                                  color: AppTheme.primaryColor,
+                                  fontSize: 11,
+                                ),
                               ),
                               const SizedBox(height: 3),
-                              Row(children: [
-                                const Icon(Icons.location_on_outlined,
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
                                     size: 11,
-                                    color: AppTheme.textSecondary),
-                                const SizedBox(width: 3),
-                                Expanded(
-                                  child: Text(t.direccionTexto,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Expanded(
+                                    child: Text(
+                                      t.direccionTexto,
                                       style: const TextStyle(
-                                          fontSize: 11,
-                                          color: AppTheme.textSecondary),
+                                        fontSize: 11,
+                                        color: AppTheme.textSecondary,
+                                      ),
                                       maxLines: 1,
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                              ]),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -432,32 +494,32 @@ class _MapaTalleresScreenState extends ConsumerState<MapaTalleresScreen>
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : state.error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off,
-                          size: 48, color: Colors.grey.shade300),
-                      const SizedBox(height: 12),
-                      Text(state.error!,
-                          style: TextStyle(color: Colors.grey.shade500)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => ref
-                            .read(tallerProvider.notifier)
-                            .cargarTalleres(),
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, size: 48, color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
+                  Text(
+                    state.error!,
+                    style: TextStyle(color: Colors.grey.shade500),
                   ),
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildLista(state.talleres),
-                    _buildMapa(state.talleres),
-                  ],
-                ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        ref.read(tallerProvider.notifier).cargarTalleres(),
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildLista(state.talleres),
+                _buildMapa(state.talleres),
+              ],
+            ),
     );
   }
 }
@@ -533,59 +595,85 @@ class _TarjetaTaller extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.store_outlined,
-                color: AppTheme.primaryColor, size: 22),
+            const Icon(
+              Icons.store_outlined,
+              color: AppTheme.primaryColor,
+              size: 22,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(taller.nombre,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    taller.nombre,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     taller.especialidadNombre ?? 'Sin especialidad',
                     style: const TextStyle(
-                        color: AppTheme.primaryColor, fontSize: 13),
+                      color: AppTheme.primaryColor,
+                      fontSize: 13,
+                    ),
                   ),
                   if (taller.calificacionPromedio != null) ...[
                     const SizedBox(height: 4),
-                    Row(children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${taller.calificacionPromedio}',
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '(${taller.totalCalificaciones} reseñas)',
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey),
-                      ),
-                    ]),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${taller.calificacionPromedio}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '(${taller.totalCalificaciones} reseñas)',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                   const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 13, color: AppTheme.textSecondary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(taller.direccionTexto,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          taller.direccionTexto,
                           style: const TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary),
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ]),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios,
-                size: 14, color: AppTheme.textSecondary),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: AppTheme.textSecondary,
+            ),
           ],
         ),
       ),
@@ -616,8 +704,7 @@ class _DetalleRow extends StatelessWidget {
         Icon(icono, size: 16, color: color),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(texto,
-              style: TextStyle(fontSize: 14, color: color)),
+          child: Text(texto, style: TextStyle(fontSize: 14, color: color)),
         ),
       ],
     );

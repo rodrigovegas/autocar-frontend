@@ -15,11 +15,11 @@ class UsuarioModel {
 
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
     return UsuarioModel(
-      id: json['id'],
-      nombre: json['nombre'],
+      id: json['id'] ?? '',
+      nombre: json['nombre'] ?? '',
       correo: json['correo'] ?? '',
-      rol: json['rol'],
-      token: json['token'],
+      rol: json['rol'] ?? '',
+      token: json['token'] ?? '',
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/google_auth_service.dart';
 
 class RegistroTallerScreen extends ConsumerStatefulWidget {
   const RegistroTallerScreen({super.key});
@@ -28,6 +29,37 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
   bool _loadingEspecialidades = true;
   String? _errorEspecialidades;
 
+  bool _googleLoading = false;
+  bool _argsLeidos = false;
+
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_argsLeidos) {
+      _argsLeidos = true;
+      final args =
+          ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      final datosGoogle = args?['datosGoogle'] as Map<String, dynamic>?;
+      final idTokenPrevio = args?['idToken'] as String?;
+
+      // Si viene con token previo y datos de Google, ir directo a completar perfil
+      if (datosGoogle != null && idTokenPrevio != null) {
+        debugPrint('Registro Taller: redirigiendo a completar-perfil (idToken previo)'); // TODO: remover en producción
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacementNamed(
+              context,
+              '/completar-perfil-taller-google',
+              arguments: args,
+            );
+          }
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +74,12 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
     _correoController.dispose();
     _contrasenaController.dispose();
     super.dispose();
+  }
+
+  void _mostrarSnackBar(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), duration: const Duration(seconds: 4)),
+    );
   }
 
   Future<void> _cargarEspecialidades() async {
@@ -69,6 +107,8 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
       if (mounted) setState(() => _loadingEspecialidades = false);
     }
   }
+
+  // ── Flujo tradicional ──────────────────────────────────────────────────────
 
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
@@ -102,9 +142,47 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
     }
   }
 
+  // ── Flujo Google ───────────────────────────────────────────────────────────
+
+  Future<void> _onGoogleRegistroPressed() async {
+    debugPrint('Registro Taller Google: usuario presionó el botón'); // TODO: remover en producción
+    setState(() => _googleLoading = true);
+
+    try {
+      final idToken = await _googleAuthService.obtenerIdTokenGoogle();
+      if (!mounted) return;
+      if (idToken == null) return; // cancelado por usuario
+
+      final datosUsuario = _googleAuthService.obtenerDatosUsuarioActual();
+      debugPrint('Registro Taller Google: navegando a completar-perfil'); // TODO: remover en producción
+
+      Navigator.pushNamed(
+        context,
+        '/completar-perfil-taller-google',
+        arguments: {
+          'idToken': idToken,
+          'datosGoogle': {
+            'correo': datosUsuario['correo'] ?? '',
+            'nombre': datosUsuario['nombre'] ?? '',
+          },
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('Registro Taller Google: error = $e'); // TODO: remover en producción
+      _mostrarSnackBar(
+          'Hubo un problema al iniciar sesión con Google. Intenta de nuevo.');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final bool ocupado = authState.isLoading || _googleLoading;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Registro de taller')),
@@ -131,9 +209,61 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 32),
 
-              // ── Nombre ────────────────────────────────────
+              // ── Botón Google + separador ──────────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: ocupado ? null : _onGoogleRegistroPressed,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFDADADA)),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: _googleLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(
+                          Icons.g_mobiledata, // TODO: reemplazar por logo oficial de Google
+                          size: 26,
+                          color: Color(0xFF4285F4),
+                        ),
+                  label: const Text(
+                    'Registrarse con Google',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF3C4043),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  const Expanded(child: Divider(color: Color(0xFFDADADA))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'o regístrate manualmente',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                  ),
+                  const Expanded(child: Divider(color: Color(0xFFDADADA))),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Nombre ────────────────────────────────────────────────────
               TextFormField(
                 controller: _nombreController,
+                enabled: !ocupado,
                 decoration: const InputDecoration(
                   labelText: 'Nombre del taller',
                   prefixIcon: Icon(Icons.store_outlined),
@@ -143,7 +273,7 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Especialidad (dropdown) ───────────────────
+              // ── Especialidad (dropdown) ───────────────────────────────────
               if (_loadingEspecialidades)
                 const Center(
                   child: Padding(
@@ -191,21 +321,24 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
                         ),
                       )
                       .toList(),
-                  onChanged: (id) {
-                    setState(() {
-                      _especialidadSeleccionadaId = id;
-                      _especialidadSeleccionadaNombre = _especialidades
-                          .firstWhere((e) => e['id'] == id)['nombre'];
-                    });
-                  },
+                  onChanged: ocupado
+                      ? null
+                      : (id) {
+                          setState(() {
+                            _especialidadSeleccionadaId = id;
+                            _especialidadSeleccionadaNombre = _especialidades
+                                .firstWhere((e) => e['id'] == id)['nombre'];
+                          });
+                        },
                   validator: (v) =>
                       v == null ? 'Selecciona una especialidad' : null,
                 ),
               const SizedBox(height: 16),
 
-              // ── Dirección ─────────────────────────────────
+              // ── Dirección ─────────────────────────────────────────────────
               TextFormField(
                 controller: _direccionController,
+                enabled: !ocupado,
                 decoration: const InputDecoration(
                   labelText: 'Dirección',
                   prefixIcon: Icon(Icons.location_on_outlined),
@@ -216,10 +349,11 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Teléfono ──────────────────────────────────
+              // ── Teléfono ──────────────────────────────────────────────────
               TextFormField(
                 controller: _telefonoController,
                 keyboardType: TextInputType.phone,
+                enabled: !ocupado,
                 decoration: const InputDecoration(
                   labelText: 'Teléfono',
                   prefixIcon: Icon(Icons.phone_outlined),
@@ -229,10 +363,11 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Correo ────────────────────────────────────
+              // ── Correo ────────────────────────────────────────────────────
               TextFormField(
                 controller: _correoController,
                 keyboardType: TextInputType.emailAddress,
+                enabled: !ocupado,
                 decoration: const InputDecoration(
                   labelText: 'Correo electrónico',
                   prefixIcon: Icon(Icons.email_outlined),
@@ -245,10 +380,11 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Contraseña ────────────────────────────────
+              // ── Contraseña ────────────────────────────────────────────────
               TextFormField(
                 controller: _contrasenaController,
                 obscureText: true,
+                enabled: !ocupado,
                 decoration: const InputDecoration(
                   labelText: 'Contraseña',
                   prefixIcon: Icon(Icons.lock_outlined),
@@ -262,7 +398,7 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── Error de auth ─────────────────────────────
+              // ── Error de auth ─────────────────────────────────────────────
               if (authState.error != null)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -277,11 +413,11 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
                 ),
               const SizedBox(height: 24),
 
-              // ── Botón registrar ───────────────────────────
-              authState.isLoading
+              // ── Botón registrar ───────────────────────────────────────────
+              authState.isLoading && !_googleLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
-                      onPressed: _registrar,
+                      onPressed: ocupado ? null : _registrar,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.secondaryColor,
                       ),
@@ -291,8 +427,10 @@ class _RegistroTallerScreenState extends ConsumerState<RegistroTallerScreen> {
 
               Center(
                 child: TextButton(
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, '/login'),
+                  onPressed: ocupado
+                      ? null
+                      : () =>
+                          Navigator.pushReplacementNamed(context, '/login'),
                   child: const Text('¿Ya tienes cuenta? Inicia sesión'),
                 ),
               ),

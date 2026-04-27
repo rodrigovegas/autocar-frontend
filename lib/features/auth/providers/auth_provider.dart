@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/services/google_auth_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../models/usuario_model.dart';
+import 'google_auth_result.dart';
 
 // Estado de autenticación
 class AuthState {
@@ -32,6 +35,7 @@ class AuthState {
 // Notifier de autenticación — Patrón Service Layer en Flutter
 class AuthNotifier extends StateNotifier<AuthState> {
   final ApiService _apiService = ApiService();
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
 
   AuthNotifier() : super(const AuthState()) {
     _cargarSesion();
@@ -120,8 +124,156 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  // ── Google Sign-In ────────────────────────────────────────────────────────
+
+  Future<GoogleAuthResult> loginConGoogle() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final idToken = await _googleAuthService.obtenerIdTokenGoogle();
+      if (idToken == null) {
+        state = state.copyWith(isLoading: false);
+        return const GoogleAuthResult(tipo: GoogleAuthTipo.canceladoPorUsuario);
+      }
+
+      debugPrint('Google Sign-In: token obtenido, enviando al backend...'); // TODO: remover en producción
+      final response = await _apiService.dio.post(
+        ApiConstants.googleLogin,
+        data: {'id_token': idToken},
+      );
+
+      final usuario = UsuarioModel.fromJson(response.data);
+      await _apiService.setAuthToken(usuario.token);
+      await _apiService.saveUserData(usuario.rol, usuario.id, usuario.nombre);
+      state = state.copyWith(isLoading: false, usuario: usuario);
+      debugPrint('Google Sign-In: respuesta del backend = éxito, rol=${usuario.rol}'); // TODO: remover en producción
+      return GoogleAuthResult(tipo: GoogleAuthTipo.exito, usuario: usuario);
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      return _mapearErrorGoogle(e);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      debugPrint('Google Sign-In: error = $e'); // TODO: remover en producción
+      return GoogleAuthResult(
+        tipo: GoogleAuthTipo.errorGenerico,
+        mensaje: 'Error al iniciar sesión con Google.',
+      );
+    }
+  }
+
+  Future<GoogleAuthResult> registrarUsuarioConGoogle({
+    String? nombreOverride,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final idToken = await _googleAuthService.obtenerIdTokenGoogle();
+      if (idToken == null) {
+        state = state.copyWith(isLoading: false);
+        return const GoogleAuthResult(tipo: GoogleAuthTipo.canceladoPorUsuario);
+      }
+
+      debugPrint('Google Sign-In: token obtenido, enviando al backend...'); // TODO: remover en producción
+      final body = <String, dynamic>{'id_token': idToken};
+      if (nombreOverride != null && nombreOverride.isNotEmpty) {
+        body['nombre'] = nombreOverride;
+      }
+
+      final response = await _apiService.dio.post(
+        ApiConstants.googleRegistroUsuario,
+        data: body,
+      );
+
+      final usuario = UsuarioModel.fromJson(response.data);
+      await _apiService.setAuthToken(usuario.token);
+      await _apiService.saveUserData(usuario.rol, usuario.id, usuario.nombre);
+      state = state.copyWith(isLoading: false, usuario: usuario);
+      debugPrint('Google Sign-In: respuesta del backend = registro usuario ok'); // TODO: remover en producción
+      return GoogleAuthResult(tipo: GoogleAuthTipo.exito, usuario: usuario);
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      return _mapearErrorGoogle(e);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      debugPrint('Google Sign-In: error = $e'); // TODO: remover en producción
+      return GoogleAuthResult(
+        tipo: GoogleAuthTipo.errorGenerico,
+        mensaje: 'Error al registrarse con Google.',
+      );
+    }
+  }
+
+  Future<GoogleAuthResult> registrarTallerConGoogle({
+    required String nombre,
+    required String especialidad,
+    required String direccion,
+    required String telefono,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final idToken = await _googleAuthService.obtenerIdTokenGoogle();
+      if (idToken == null) {
+        state = state.copyWith(isLoading: false);
+        return const GoogleAuthResult(tipo: GoogleAuthTipo.canceladoPorUsuario);
+      }
+
+      debugPrint('Google Sign-In: token obtenido, enviando al backend...'); // TODO: remover en producción
+      await _apiService.dio.post(
+        ApiConstants.googleRegistroTaller,
+        data: {
+          'id_token': idToken,
+          'nombre': nombre,
+          'especialidad': especialidad,
+          'direccion_texto': direccion,
+          'telefono': telefono,
+        },
+      );
+
+      state = state.copyWith(isLoading: false);
+      debugPrint('Google Sign-In: respuesta del backend = registro taller ok (pendiente)'); // TODO: remover en producción
+      // No guardamos sesión — el taller queda en estado "pendiente"
+      return const GoogleAuthResult(tipo: GoogleAuthTipo.exito);
+    } on DioException catch (e) {
+      state = state.copyWith(isLoading: false);
+      return _mapearErrorGoogle(e);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      debugPrint('Google Sign-In: error = $e'); // TODO: remover en producción
+      return GoogleAuthResult(
+        tipo: GoogleAuthTipo.errorGenerico,
+        mensaje: 'Error al registrar taller con Google.',
+      );
+    }
+  }
+
+  GoogleAuthResult _mapearErrorGoogle(DioException e) {
+    if (e.response == null) {
+      return const GoogleAuthResult(tipo: GoogleAuthTipo.sinConexion);
+    }
+    final detail = e.response?.data['detail'];
+    final code = detail is Map ? detail['code'] as String? : null;
+    final mensaje = detail is Map ? detail['message'] as String? : detail?.toString();
+    debugPrint('Google Sign-In: respuesta del backend = $code'); // TODO: remover en producción
+
+    return switch (code) {
+      'INVALID_TOKEN'       => GoogleAuthResult(tipo: GoogleAuthTipo.tokenInvalido, mensaje: mensaje),
+      'EMAIL_NOT_VERIFIED'  => GoogleAuthResult(tipo: GoogleAuthTipo.emailNoVerificado, mensaje: mensaje),
+      'ADMIN_NOT_ALLOWED'   => GoogleAuthResult(tipo: GoogleAuthTipo.adminNoPermitido, mensaje: mensaje),
+      'CUENTA_PENDIENTE'    => GoogleAuthResult(tipo: GoogleAuthTipo.cuentaPendiente, mensaje: mensaje),
+      'CUENTA_RECHAZADA'    => GoogleAuthResult(tipo: GoogleAuthTipo.cuentaRechazada, mensaje: mensaje),
+      'CUENTA_DESACTIVADA'  => GoogleAuthResult(tipo: GoogleAuthTipo.cuentaDesactivada, mensaje: mensaje),
+      'EMAIL_EXISTS'        => GoogleAuthResult(tipo: GoogleAuthTipo.emailExiste, mensaje: mensaje),
+      'NOT_REGISTERED'      => GoogleAuthResult(tipo: GoogleAuthTipo.noRegistrado, mensaje: mensaje),
+      'ALREADY_REGISTERED'  => GoogleAuthResult(tipo: GoogleAuthTipo.alreadyRegistered, mensaje: mensaje),
+      'NOMBRE_REQUERIDO'    => GoogleAuthResult(tipo: GoogleAuthTipo.nombreRequerido, mensaje: mensaje),
+      'ESPECIALIDAD_INVALIDA' => GoogleAuthResult(tipo: GoogleAuthTipo.especialidadInvalida, mensaje: mensaje),
+      _                     => GoogleAuthResult(tipo: GoogleAuthTipo.errorGenerico, mensaje: mensaje),
+    };
+  }
+
+  // ── Sesión ────────────────────────────────────────────────────────────────
+
   Future<void> cerrarSesion() async {
     await _apiService.clearToken();
+    await _googleAuthService.cerrarSesionGoogle();
     state = const AuthState();
   }
 }

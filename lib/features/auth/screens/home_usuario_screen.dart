@@ -10,6 +10,7 @@ import '../../asistente/screens/asistente_screen.dart';
 import '../../reservas/screens/mis_reservas_screen.dart';
 import '../../educativo/screens/educativo_screen.dart';
 import '../../mantenimiento/screens/historial_completado_screen.dart';
+import '../../recordatorios/screens/recordatorios_screen.dart';
 
 // ─────────────────────────────────────────────
 // MODELO ESTADÍSTICAS USUARIO
@@ -213,6 +214,13 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
                     subtitulo: 'Gestiona tus vehículos registrados',
                     color: AppTheme.primaryColor,
                     onTap: () => _navegar(const VehiculosScreen()),
+                  ),
+                  _DrawerItem(
+                    icono: Icons.notifications_outlined,
+                    titulo: 'Recordatorios',
+                    subtitulo: 'Recordatorios de mantenimiento',
+                    color: const Color(0xFFD97706),
+                    onTap: () => _navegar(const RecordatoriosScreen()),
                   ),
                   _DrawerItem(
                     icono: Icons.history,

@@ -38,6 +38,7 @@ class _RegistrarMantenimientoScreenState
   bool _seccion2Abierta = false;
   bool _seccion3Abierta = false;
   bool _guardando = false;
+  bool _crearRecordatorio = false;
 
   @override
   void dispose() {
@@ -60,6 +61,21 @@ class _RegistrarMantenimientoScreenState
     if (_kmController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ingresa el kilometraje')),
+      );
+      return;
+    }
+
+    if (_crearRecordatorio &&
+        _kmProximoController.text.isEmpty &&
+        _fechaProximo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Para crear el recordatorio debe especificar '
+            'fecha o kilometraje del próximo mantenimiento',
+          ),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -91,6 +107,7 @@ class _RegistrarMantenimientoScreenState
           'recomendaciones': _recomendacionesController.text.isNotEmpty
               ? _recomendacionesController.text
               : null,
+          'crear_recordatorio_proximo': _crearRecordatorio,
         },
       );
       await ref.read(reservaTallerProvider.notifier).cargarReservas();
@@ -363,6 +380,39 @@ class _RegistrarMantenimientoScreenState
                         borderRadius: BorderRadius.circular(12)),
                     filled: true,
                     fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _crearRecordatorio
+                        ? const Color(0xFFEFF6FF)
+                        : const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _crearRecordatorio
+                          ? AppTheme.primaryColor.withValues(alpha: 0.4)
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+                  child: CheckboxListTile(
+                    value: _crearRecordatorio,
+                    onChanged: (v) =>
+                        setState(() => _crearRecordatorio = v ?? false),
+                    activeColor: AppTheme.primaryColor,
+                    title: const Text(
+                      'Crear recordatorio del próximo mantenimiento para el cliente',
+                      style: TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: const Text(
+                      'Se enviará al cliente el aviso del próximo mantenimiento. '
+                      'Requiere completar fecha o kilometraje del próximo mantenimiento.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
                 ),
               ],
