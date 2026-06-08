@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import '../providers/educativo_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/educativo_model.dart';
@@ -289,34 +291,24 @@ class _DetalleContenidoScreen extends StatelessWidget {
             MarkdownBody(
               data: contenido.cuerpo,
               styleSheet: MarkdownStyleSheet(
-                p: const TextStyle(
-                    fontSize: 15,
-                    color: AppTheme.textPrimary,
-                    height: 1.6),
-                strong: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold),
-                h2: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
-                h3: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold),
+                p: const TextStyle(fontSize: 15, height: 1.6),
+                strong: const TextStyle(fontWeight: FontWeight.bold),
+                listBullet: const TextStyle(fontSize: 15),
               ),
             ),
-            if (contenido.urlVideo != null) ...[
+            if (contenido.urlVideo != null && contenido.urlVideo!.isNotEmpty) ...[
               const SizedBox(height: 24),
-              _VideoWidget(url: contenido.urlVideo!),
+              ...contenido.urlVideo!.split(',').map((url) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _VideoWidget(url: url.trim()),
+              )),
             ],
-            if (contenido.urlImagen != null) ...[
+            if (contenido.urlImagen != null && contenido.urlImagen!.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _MediaCard(
-                icon: contenido.urlImagen!.toLowerCase().contains('pdf')
-                    ? Icons.picture_as_pdf
-                    : Icons.image,
-                iconColor: contenido.urlImagen!.toLowerCase().contains('pdf')
-                    ? Colors.orange
-                    : Colors.blue,
-                label: 'Ver archivo adjunto',
-                url: contenido.urlImagen!,
-              ),
+              ...contenido.urlImagen!.split(',').map((url) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _MediaCard(url: url.trim()),
+              )),
             ],
           ],
         ),
@@ -407,68 +399,178 @@ class _VideoWidget extends StatelessWidget {
       );
     }
 
-    return _MediaCard(
-      icon: Icons.play_circle,
-      iconColor: Colors.red,
-      label: 'Ver video',
-      url: url,
+    if (url.contains('res.cloudinary.com')) {
+      return _VideoCloudinary(url: url);
+    }
+    return _MediaCard(url: url);
+  }
+}
+
+class _VideoCloudinary extends StatefulWidget {
+  final String url;
+  const _VideoCloudinary({required this.url});
+
+  @override
+  State<_VideoCloudinary> createState() => _VideoCloudinaryState();
+}
+
+class _VideoCloudinaryState extends State<_VideoCloudinary> {
+  late VideoPlayerController _controller;
+  bool _iniciado = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) setState(() => _iniciado = true);
+      }).catchError((_) {
+        if (mounted) setState(() => _error = true);
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error) {
+      return _MediaCard(url: widget.url);
+    }
+    if (!_iniciado) {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(_controller),
+          ),
+          VideoProgressIndicator(_controller, allowScrubbing: true),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _controller.value.isPlaying
+                        ? _controller.pause()
+                        : _controller.play();
+                  });
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _MediaCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
   final String url;
+  const _MediaCard({required this.url});
 
-  const _MediaCard({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-    required this.url,
-  });
+  bool get esPDF =>
+      url.contains('.pdf') ||
+      url.contains('/raw/upload/') ||
+      url.contains('application/pdf');
+
+  bool get esCloudinaryImagen =>
+      url.contains('res.cloudinary.com') &&
+      !esPDF &&
+      (url.contains('/image/upload/') ||
+       url.endsWith('.jpg') ||
+       url.endsWith('.jpeg') ||
+       url.endsWith('.png') ||
+       url.endsWith('.webp'));
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _abrirUrl(url),
+    if (esCloudinaryImagen) {
+      return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, color: iconColor, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      url,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.open_in_new, size: 16, color: AppTheme.textSecondary),
-            ],
+        child: CachedNetworkImage(
+          imageUrl: url,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            height: 200,
+            color: Colors.grey[200],
+            child: const Center(child: CircularProgressIndicator()),
           ),
+          errorWidget: (context, url, error) => Container(
+            height: 200,
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: () {
+        final urlFinal = esPDF && url.contains('res.cloudinary.com')
+            ? 'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}'
+            : url;
+        launchUrl(
+          Uri.parse(urlFinal),
+          mode: LaunchMode.externalApplication,
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: esPDF ? Colors.orange[50] : Colors.blue[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: esPDF ? Colors.orange[200]! : Colors.blue[200]!,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              esPDF ? Icons.picture_as_pdf : Icons.image,
+              color: esPDF ? Colors.orange[700] : Colors.blue[700],
+              size: 32,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    esPDF ? 'Ver PDF' : 'Ver imagen',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'Toca para abrir',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.open_in_new, color: Colors.grey[500]),
+          ],
         ),
       ),
     );

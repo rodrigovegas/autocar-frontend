@@ -5,7 +5,6 @@ import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/api_service.dart';
 import '../../reservas/screens/reservas_taller_screen.dart';
-import '../../educativo/screens/publicar_contenido_screen.dart';
 import '../../educativo/screens/mis_contenidos_screen.dart';
 import '../../talleres/screens/disponibilidad_taller_screen.dart';
 import '../../mantenimiento/screens/historial_taller_screen.dart';
@@ -222,14 +221,6 @@ class _HomeTabState extends ConsumerState<_HomeTab> {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
-                  _DrawerItem(
-                    icono: Icons.post_add,
-                    titulo: 'Publicar contenido',
-                    subtitulo: 'Crea nuevo contenido educativo',
-                    color: const Color(0xFF7C3AED),
-                    onTap: () =>
-                        _navegar(const PublicarContenidoScreen()),
-                  ),
                   _DrawerItem(
                     icono: Icons.article,
                     titulo: 'Mis contenidos',
