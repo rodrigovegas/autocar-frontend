@@ -33,7 +33,7 @@ class AsistenteNotifier extends StateNotifier<AsistenteState> {
 
   AsistenteNotifier() : super(const AsistenteState());
 
-  Future<void> enviarMensaje(String mensaje) async {
+  Future<void> enviarMensaje(String mensaje, {String? vehiculoId}) async {
     // Agregar mensaje del usuario a la lista
     final mensajeUsuario = MensajeModel(
       contenido: mensaje,
@@ -62,6 +62,7 @@ class AsistenteNotifier extends StateNotifier<AsistenteState> {
         data: {
           'mensaje': mensaje,
           'historial': historial,
+          if (vehiculoId != null) 'vehiculo_id': vehiculoId,
         },
       );
 

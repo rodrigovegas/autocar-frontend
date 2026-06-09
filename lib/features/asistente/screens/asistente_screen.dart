@@ -4,6 +4,10 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/asistente_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../models/mensaje_model.dart';
+import 'package:dio/dio.dart';
+import '../../../shared/services/api_service.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../models/vehiculo_model.dart';
 
 class AsistenteScreen extends ConsumerStatefulWidget {
   const AsistenteScreen({super.key});
@@ -15,6 +19,15 @@ class AsistenteScreen extends ConsumerStatefulWidget {
 class _AsistenteScreenState extends ConsumerState<AsistenteScreen> {
   final _mensajeController = TextEditingController();
   final _scrollController = ScrollController();
+  List<VehiculoModel> _vehiculos = [];
+  VehiculoModel? _vehiculoSeleccionado;
+  bool _cargandoVehiculos = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarVehiculos();
+  }
 
   @override
   void dispose() {
@@ -35,12 +48,32 @@ class _AsistenteScreenState extends ConsumerState<AsistenteScreen> {
     });
   }
 
+  Future<void> _cargarVehiculos() async {
+    try {
+      final response = await ApiService().dio.get(ApiConstants.vehiculos);
+      setState(() {
+        _vehiculos = (response.data as List)
+            .map((e) => VehiculoModel.fromJson(e))
+            .where((v) => v.activo)
+            .toList();
+        if (_vehiculos.length == 1) {
+          _vehiculoSeleccionado = _vehiculos.first;
+        }
+        _cargandoVehiculos = false;
+      });
+    } catch (_) {
+      setState(() => _cargandoVehiculos = false);
+    }
+  }
+
   Future<void> _enviarMensaje() async {
     final mensaje = _mensajeController.text.trim();
     if (mensaje.isEmpty) return;
-
     _mensajeController.clear();
-    await ref.read(asistenteProvider.notifier).enviarMensaje(mensaje);
+    await ref.read(asistenteProvider.notifier).enviarMensaje(
+      mensaje,
+      vehiculoId: _vehiculoSeleccionado?.id,
+    );
     _scrollAlFinal();
   }
 
@@ -158,6 +191,35 @@ class _AsistenteScreenState extends ConsumerState<AsistenteScreen> {
               ),
             ),
 
+          if (_cargandoVehiculos)
+            const LinearProgressIndicator()
+          else if (_vehiculos.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  const Icon(Icons.directions_car, size: 18, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<VehiculoModel>(
+                        value: _vehiculoSeleccionado,
+                        hint: const Text('Seleccioná tu vehículo', style: TextStyle(fontSize: 13)),
+                        isExpanded: true,
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                        items: _vehiculos.map((v) => DropdownMenuItem(
+                          value: v,
+                          child: Text('${v.marca} ${v.modelo} ${v.anio}'),
+                        )).toList(),
+                        onChanged: (v) => setState(() => _vehiculoSeleccionado = v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Campo de entrada
           Container(
             padding: const EdgeInsets.all(12),
@@ -189,6 +251,7 @@ class _AsistenteScreenState extends ConsumerState<AsistenteScreen> {
                         vertical: 10,
                       ),
                     ),
+                    enabled: _vehiculos.isEmpty || _vehiculoSeleccionado != null,
                     maxLines: null,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _enviarMensaje(),
